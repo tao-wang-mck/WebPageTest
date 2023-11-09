@@ -4,9 +4,10 @@ version: '3.6'
 services:
 
   web:
-    build: 
-      context: .
-      dockerfile: docker/local/Dockerfile-nginx
+    image: wpt-nginx
+#    build: 
+#      context: .
+#      dockerfile: docker/local/Dockerfile-nginx
     # privileged: true
     ports:
       - target: 80
@@ -25,12 +26,13 @@ services:
         target: /var/www/webpagetest/settings/keys.ini
 
   php:
-    build: 
-      context: .
-      dockerfile: docker/local/Dockerfile-php
-      args:
-        - UID=${UID:-1000}
-        - GID=${GID:-1000}
+    image: wpt-php
+#    build: 
+#      context: .
+#      dockerfile: docker/local/Dockerfile-php
+#      args:
+#        - UID=${UID:-1000}
+#        - GID=${GID:-1000}
     # user: "1000:1000"
     # privileged: true
     extra_hosts: # Needed for xdebug 
@@ -54,15 +56,29 @@ services:
       - source: wpt_locations_ini
         target: /var/www/webpagetest/www/settings/locations.ini
 
-  #### DOCKER WPTAGENT - comment this out to run a standalone agent ####
+  ### DOCKER WPTAGENT - comment this out to run a standalone agent ####
   agent:
+    image: wpt-agent
     cap_add: #### Allows traffic shapping
-      - NET_ADMIN
+      - ALL
     build:
       context: .
       dockerfile: docker/local/Dockerfile-wptagent
+    volumes:
+      - ./browsers.ini:/wptagent/browsers.ini
+      # - ./docker/local/agent/wptagent.py:/wptagent/wptagent.py
     command: python3 wptagent.py -vvvv --xvfb --dockerized --server  http://web/work/ --location Test --key 123456789
+    
+    # --shaper none
   #### ####
+  # agent:
+  #   image: webpagetest/agent
+  #   platform: linux/amd64
+  #   environment:
+  #     SERVER_URL: http://web/work/
+  #     LOCATION: Test
+  #     KEY: 123456789
+  #     SHAPER: none
 
 secrets:
   wpt_settings_ini:

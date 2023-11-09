@@ -17,33 +17,46 @@
 ###     Recommend to install with "docker build <GITHUB-REPO-LINK> -t TAGNAME",
 ###     grabs the latest copy of WPT and build time on average takes 10 minutes. 
 
-FROM ubuntu
+#FROM --platform=linux/amd64 ubuntu
+#--FROM ubuntu
 
 ### PREVENTs INTERACTIVE PROMPTS WHILE INSTALLING ###
-ARG DEBIAN_FRONTEND=noninteractive
+#--ARG DEBIAN_FRONTEND=noninteractive
 
 ### COPYING ENTIRE DIR TO LOCAL DOCKER /wptagent
 #COPY / /wptagent
-RUN apt-get update
+#--RUN apt-get update
 
 # Install software 
-RUN apt-get install -y git
-RUN git clone -b master https://github.com/WPO-Foundation/wptagent.git
+#--RUN apt-get install -y git
+#RUN git clone -b master https://github.com/WPO-Foundation/wptagent.git
+#--RUN git clone -b master https://gitee.com/jwyy/wptagent.git
 #COPY docker/linux-headless/entrypoint.sh /wptagent/entrypoint.sh
 
-### UPDATE ###
-RUN apt-get update 
+FROM wpt-agent-base
 
-### INSTALL APT-GET LIBS ###
-RUN xargs -a /wptagent/.github/workflows/docker-apt-get.txt apt-get install --no-install-recommends --yes
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+
+# RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list \
+#     && sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+### UPDATE ###
+# RUN apt-get clean && apt-get update --fix-missing
+
+# ### INSTALL APT-GET LIBS ###
+# COPY docker/local/agent/docker-apt-get.txt /wptagent/.github/workflows/docker-apt-get.txt
+# RUN xargs -a /wptagent/.github/workflows/docker-apt-get.txt apt-get install --no-install-recommends --yes
 
 ### UPGRADING PIP AND INSTALLING REQUIRED PACKAGES ###
-RUN python3 -m pip install --upgrade --user pip && \
-    python3 -m pip install --user -r /wptagent/.github/workflows/requirements.txt 
+# RUN python3 -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple/ --upgrade --user pip && \
+#     python3 -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple/ --default-timeout=1000 --user -r /wptagent/.github/workflows/requirements.txt 
 
 ### INSTALLING LIGHTHOUSE FROM NPM ###
-RUN npm install -g lighthouse
-
+# RUN apt install -y nodejs \
+#     && npm install n -g \
+#     && n stable
+# RUN npm install -g lighthouse
 ### INSTALLING CHROME BROWSER ###
 ###     Fails to Find all libs needed to run
 # RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
@@ -51,19 +64,25 @@ RUN npm install -g lighthouse
 #     apt -f install -y && \
 #     apt-get install google-chrome-stable
 
-### BETTER INSTALLING CHROME BROWSER METHOD ###
-###     Better Installing method but would like to change this to something less complex.
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
-RUN apt-get update && apt-get -y install google-chrome-stable ; exit 0
-RUN apt-get update --fix-missing -y
-RUN apt-get install -f -y
+# ### BETTER INSTALLING CHROME BROWSER METHOD ###
+# ###     Better Installing method but would like to change this to something less complex.
+# # RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+# #     && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+# # RUN apt-get update && apt-get -y install google-chrome-stable ; exit 0
+# # RUN apt-get update --fix-missing -y
+# # RUN apt-get install -f -y
 
-### CLEAN UP ###
-#       We could add some clean up here but in testing it was negotiable
+# ### CLEAN UP ###
+# #       We could add some clean up here but in testing it was negotiable
 
+# RUN apt --fix-broken install -y && apt install -y libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon-x11-0 \
+#     libxdamage1 libgbm-dev libpangocairo-1.0-0
 
 WORKDIR /wptagent
+#---COPY browsers.ini /wptagent/browsers.ini
 
 ### /bin/bash LOCATION OF COMMAND EXECUTION ###
 #CMD ["python3","wptagent.py", "-vvvv", "--xvfb", "--server", "http://web/work/", "--location", "Test", "--key", "123456789"]
+
+
+# docker build -f docker/local/Dockerfile-wptagent -t wpt-agent-base .
