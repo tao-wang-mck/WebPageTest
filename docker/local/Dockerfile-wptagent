@@ -35,11 +35,16 @@ RUN git clone -b master https://github.com/WPO-Foundation/wptagent.git
 RUN apt-get update 
 
 ### INSTALL APT-GET LIBS ###
+COPY docker/local/agent/docker-apt-get.txt /wptagent/.github/workflows/docker-apt-get.txt
 RUN xargs -a /wptagent/.github/workflows/docker-apt-get.txt apt-get install --no-install-recommends --yes
 
 ### UPGRADING PIP AND INSTALLING REQUIRED PACKAGES ###
 RUN python3 -m pip install --upgrade --user pip && \
     python3 -m pip install --user -r /wptagent/.github/workflows/requirements.txt 
+
+RUN apt install -y npm nodejs \
+     && npm install n -g \
+     && n stable
 
 ### INSTALLING LIGHTHOUSE FROM NPM ###
 RUN npm install -g lighthouse
