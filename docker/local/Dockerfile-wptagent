@@ -17,32 +17,52 @@
 ###     Recommend to install with "docker build <GITHUB-REPO-LINK> -t TAGNAME",
 ###     grabs the latest copy of WPT and build time on average takes 10 minutes. 
 
-FROM ubuntu
+# FROM --platform=linux/amd64 playwright/chromium:playwright-1.39.0
+FROM --platform=linux/amd64 selenium/standalone-chrome:latest
+# FROM ubuntu:20.04
 
 ### PREVENTs INTERACTIVE PROMPTS WHILE INSTALLING ###
 ARG DEBIAN_FRONTEND=noninteractive
 
+### UPDATE ###
+# RUN apt-get clean && apt-get update --fix-missing
+
 ### COPYING ENTIRE DIR TO LOCAL DOCKER /wptagent
 #COPY / /wptagent
-RUN apt-get update
+USER root
+
+RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list \
+&& sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+# USER seluser
+RUN apt-get clean && apt-get update --fix-missing
 
 # Install software 
-RUN apt-get install -y git
-RUN git clone -b master https://github.com/WPO-Foundation/wptagent.git
+RUN apt-get install -y git npm
+RUN node --version
+RUN npm install -g lighthouse
 #COPY docker/linux-headless/entrypoint.sh /wptagent/entrypoint.sh
 
 ### UPDATE ###
-RUN apt-get update 
+# RUN apt-get update 
+
+RUN apt --fix-broken install -y && apt install -y libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon-x11-0 \
+libxdamage1 libgbm-dev libpangocairo-1.0-0
 
 ### INSTALL APT-GET LIBS ###
+COPY docker/local/agent/docker-apt-get.txt /wptagent/.github/workflows/docker-apt-get.txt
 RUN xargs -a /wptagent/.github/workflows/docker-apt-get.txt apt-get install --no-install-recommends --yes
 
-### UPGRADING PIP AND INSTALLING REQUIRED PACKAGES ###
-RUN python3 -m pip install --upgrade --user pip && \
-    python3 -m pip install --user -r /wptagent/.github/workflows/requirements.txt 
+WORKDIR /
+RUN rm -rf wptagent && git clone -b master https://github.com/WPO-Foundation/wptagent.git
+# USER pwuser
+WORKDIR /wptagent
+# ### UPGRADING PIP AND INSTALLING REQUIRED PACKAGES ###
+RUN python3 -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple/ --upgrade --user pip && \
+python3 -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple/ --default-timeout=1000 --user -r /wptagent/.github/workflows/requirements.txt
 
-### INSTALLING LIGHTHOUSE FROM NPM ###
-RUN npm install -g lighthouse
+
+# ### INSTALLING LIGHTHOUSE FROM NPM ###
+# RUN npm install -g lighthouse
 
 ### INSTALLING CHROME BROWSER ###
 ###     Fails to Find all libs needed to run
@@ -53,17 +73,32 @@ RUN npm install -g lighthouse
 
 ### BETTER INSTALLING CHROME BROWSER METHOD ###
 ###     Better Installing method but would like to change this to something less complex.
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
-RUN apt-get update && apt-get -y install google-chrome-stable ; exit 0
-RUN apt-get update --fix-missing -y
-RUN apt-get install -f -y
+# RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+#     && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+# RUN apt-get update && apt-get -y install google-chrome-stable ; exit 0
+# RUN apt-get update --fix-missing -y
+# RUN apt-get install -f -y
+
 
 ### CLEAN UP ###
 #       We could add some clean up here but in testing it was negotiable
 
+RUN apt-get install -y dbus sssd-dbus apt-transport-https dbus-user-session dbus-user-session \
+    firefox
+RUN mkdir -p /var/run/dbus
+RUN dbus-daemon --config-file=/usr/share/dbus-1/system.conf --print-address
+RUN service dbus start
 
 WORKDIR /wptagent
+### COPY ENTRYPOINT ###
+# COPY docker/local/agent/entrypoint.sh /wptagent/entrypoint.sh
+# USER root
+# RUN chmod +x /wptagent/entrypoint.sh
+
+# RUN echo $(which chromium-browser); exit 0;
+# RUN echo $(which chromium); exit 0;
+# COPY browsers.ini /wptagent/browsers.ini
 
 ### /bin/bash LOCATION OF COMMAND EXECUTION ###
-#CMD ["python3","wptagent.py", "-vvvv", "--xvfb", "--server", "http://web/work/", "--location", "Test", "--key", "123456789"]
+# ENTRYPOINT ["/wptagent/entrypoint.sh"]
+# CMD ["python3","wptagent.py", "-vvvv", "--xvfb", "--server", "http://web/work/", "--location", "Test", "--key", "123456789"]
