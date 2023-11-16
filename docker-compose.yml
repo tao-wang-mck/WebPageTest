@@ -4,14 +4,16 @@ version: '3.6'
 services:
 
   web:
-    build: 
-      context: .
-      dockerfile: docker/local/Dockerfile-nginx
+    image: wsacp/wpt-nginx:0.2.0
+    # platform: linux/amd64
+    #build: 
+    #  context: .
+    #  dockerfile: docker/local/Dockerfile-nginx
     # privileged: true
     #image: wpt-web
     ports:
       - target: 80
-        published: 80
+        published: 8080
     deploy:
       replicas: 1
       placement:
@@ -26,17 +28,17 @@ services:
         target: /var/www/webpagetest/settings/keys.ini
 
   php:
-    build: 
-      context: .
-      dockerfile: docker/local/Dockerfile-php
-      args:
-        - UID=${UID:-1000}
-        - GID=${GID:-1000}
+    image: wsacp/wpt-php:0.2.0
+    # build: 
+    #   context: .
+    #   dockerfile: docker/local/Dockerfile-php
+    #   args:
+    #     - UID=${UID:-1000}
+    #     - GID=${GID:-1000}
     # user: "1000:1000"
     # privileged: true
-    #image: wsacp/wpt-php:0.1.0
-    extra_hosts: # Needed for xdebug 
-      - "host.docker.internal:host-gateway"
+    # extra_hosts: # Needed for xdebug 
+    #   - "host.docker.internal:host-gateway"
     expose:
       - 9000
     volumes:
@@ -56,16 +58,41 @@ services:
       - source: wpt_locations_ini
         target: /var/www/webpagetest/www/settings/locations.ini
 
-  #### DOCKER WPTAGENT - comment this out to run a standalone agent ####
+  ### DOCKER WPTAGENT - comment this out to run a standalone agent ####
   agent:
+    image: wsacp/wpt-agent:0.2.0
+    # image: wpt-agent-node
+    # platform: linux/amd64
+    # platform: linux/arm64/v8
     cap_add: #### Allows traffic shapping
       - NET_ADMIN
-    build:
-      context: .
-      dockerfile: docker/local/Dockerfile-wptagent
-        #image: wpt-agent
+    privileged: true
+    init: true
+    #build:
+    #  context: .
+    #  dockerfile: docker/local/Dockerfile-wptagent.test
+    #environment:
+    #  - SERVER_URL=http://web/work/
+    #  - LOCATION=Test
+    #  - KEY=123456789
+    #  - SHAPER=none
+    # environment:
+    #   - SHAPER=none
+    volumes:
+      - ./browsers.ini:/wptagent/browsers.ini
+      # - ./docker/local/agent/wptagent.py:/wptagent/wptagent.py
+      # - ./docker/local/agent/desktop_browser.py:/wptagent/internal/desktop_browser.py
     command: python3 wptagent.py -vvvv --xvfb --dockerized --server  http://web/work/ --location Test --key 123456789
+    # --shaper none
   #### ####
+  # agent:
+  #   image: webpagetest/agent
+  #   platform: linux/amd64
+  #   environment:
+  #     SERVER_URL: http://web/work/
+  #     LOCATION: Test
+  #     KEY: 123456789
+  #     SHAPER: none
 
 secrets:
   wpt_settings_ini:
